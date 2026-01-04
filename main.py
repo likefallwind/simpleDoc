@@ -172,6 +172,132 @@ def generate_learning_plan(profile_path: str, output_path: str = None, output_fo
     print("=" * 60)
 
 
+def test_prerequisites(profile_path: str, learning_goal: str = None, output_path: str = None):
+    """
+    快速测试前置依赖分析（不进行排序和教案生成）
+    
+    Args:
+        profile_path: 用户画像YAML文件路径（可选，如果不提供则只使用learning_goal）
+        learning_goal: 学习目标（如果提供profile_path则从文件中读取）
+        output_path: 输出文件路径（可选，如果不提供则只打印到控制台）
+    """
+    print("=" * 60)
+    print("前置依赖分析测试（快速模式）")
+    print("=" * 60)
+    
+    # 1. 加载用户画像
+    user_profile = None
+    if profile_path:
+        try:
+            user_profile = UserProfile.from_file(profile_path)
+            learning_goal = user_profile.learning_goal
+            print(f"\n从用户画像读取学习目标: {learning_goal}")
+            print(f"用户：{user_profile.name}")
+            print(f"已学课程：{', '.join(user_profile.courses) if user_profile.courses else '无'}")
+        except Exception as e:
+            print(f"✗ 加载用户画像失败: {str(e)}")
+            if not learning_goal:
+                print("错误：请提供学习目标或有效的用户画像文件")
+                return
+    elif not learning_goal:
+        print("错误：请提供学习目标（--goal）或用户画像文件（--profile）")
+        return
+    else:
+        # 创建临时用户画像
+        profile_dict = {
+            'user': {
+                'name': '测试用户',
+                'background': {'courses': []},
+                'learning_goal': learning_goal
+            }
+        }
+        user_profile = UserProfile.from_dict(profile_dict)
+        print(f"\n使用学习目标: {learning_goal}")
+    
+    # 2. 获取课程知识点
+    print(f"\n[步骤1] 获取课程知识点（目标：{learning_goal}）...")
+    course_knowledge = CourseKnowledge()
+    try:
+        course_data = course_knowledge.get_or_generate_knowledge_points(learning_goal)
+        knowledge_points = course_data.get('knowledge_points', [])
+        print(f"✓ 找到 {len(knowledge_points)} 个知识点")
+    except Exception as e:
+        print(f"✗ 获取课程知识点失败: {str(e)}")
+        return
+    
+    # 3. 分析前置依赖
+    print(f"\n[步骤2] 分析知识点前置依赖（测试模式）...")
+    print("  注意：此步骤可能需要较长时间，请耐心等待...")
+    analyzer = PrerequisiteAnalyzer(user_profile, verbose=True)
+    try:
+        dependencies = analyzer.analyze_all_prerequisites(knowledge_points, recursive=True, max_depth=2)
+        print(f"\n✓ 分析完成，共 {len(dependencies)} 个知识点的依赖关系")
+        
+        # 获取所有需要学习的知识点（包括前置知识点）
+        all_points = analyzer.get_all_knowledge_points(knowledge_points)
+        print(f"✓ 包含前置知识点，共 {len(all_points)} 个知识点需要学习")
+        
+        # 显示依赖关系
+        print(f"\n" + "=" * 60)
+        print("依赖关系详情：")
+        print("=" * 60)
+        for point_name, prereqs in dependencies.items():
+            if prereqs:
+                print(f"\n{point_name}:")
+                for prereq in prereqs:
+                    print(f"  → {prereq}")
+        
+        # 显示所有知识点（初始 + 前置）
+        print(f"\n" + "=" * 60)
+        print("所有知识点列表（初始 + 前置）：")
+        print("=" * 60)
+        initial_names = {p.get('name', '') for p in knowledge_points}
+        for i, point in enumerate(all_points, 1):
+            name = point.get('name', '')
+            is_initial = name in initial_names
+            marker = "[初始]" if is_initial else "[前置]"
+            desc = point.get('description', '')
+            print(f"{i}. {marker} {name}")
+            if desc:
+                print(f"   {desc}")
+        
+        # 输出到文件（如果需要）
+        if output_path:
+            import json
+            output_file = Path(output_path)
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            result = {
+                'course': {
+                    'name': course_data.get('course_name', ''),
+                    'description': course_data.get('course_description', '')
+                },
+                'initial_knowledge_points': knowledge_points,
+                'all_knowledge_points': all_points,
+                'dependencies': dependencies,
+                'statistics': {
+                    'initial_points': len(knowledge_points),
+                    'prerequisite_points': len(all_points) - len(knowledge_points),
+                    'total_points': len(all_points),
+                    'dependency_count': len(dependencies)
+                }
+            }
+            
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+            print(f"\n✓ 结果已保存到: {output_path}")
+        
+    except Exception as e:
+        print(f"✗ 分析前置依赖失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return
+    
+    print("\n" + "=" * 60)
+    print("测试完成！")
+    print("=" * 60)
+
+
 def test_knowledge_points(profile_path: str, learning_goal: str = None, output_path: str = None):
     """
     快速测试知识点生成（不进行依赖分析和排序）
@@ -367,6 +493,12 @@ def main():
     points_parser.add_argument('-g', '--goal', help='学习目标（如果不提供--profile则必须提供）')
     points_parser.add_argument('-o', '--output', help='输出JSON文件路径（可选）')
     
+    # 快速测试前置依赖分析命令
+    prereq_parser = subparsers.add_parser('prereq', help='快速测试前置依赖分析（不进行排序和教案生成）')
+    prereq_parser.add_argument('-p', '--profile', help='用户画像YAML文件路径（可选，如果不提供则使用--goal）')
+    prereq_parser.add_argument('-g', '--goal', help='学习目标（如果不提供--profile则必须提供）')
+    prereq_parser.add_argument('-o', '--output', help='输出JSON文件路径（可选）')
+    
     args = parser.parse_args()
     
     # 根据命令执行相应功能
@@ -406,6 +538,18 @@ def main():
             profile_path = str(profile_path_obj)
         
         test_knowledge_points(profile_path, args.goal, args.output)
+    
+    elif args.command == 'prereq':
+        # 测试前置依赖分析
+        profile_path = None
+        if args.profile:
+            profile_path_obj = Path(args.profile)
+            if not profile_path_obj.exists():
+                print(f"错误：用户画像文件不存在: {args.profile}")
+                return
+            profile_path = str(profile_path_obj)
+        
+        test_prerequisites(profile_path, args.goal, args.output)
     
     else:
         # 如果没有指定命令，显示帮助信息
