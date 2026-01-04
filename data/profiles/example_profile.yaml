@@ -1,0 +1,7 @@
+user:
+  name: "示例学生"
+  background:
+    courses:
+      - "Python基础"
+      - "数据结构与算法"
+  learning_goal: "强化学习"
