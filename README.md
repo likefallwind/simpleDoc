@@ -42,9 +42,26 @@ user:
 
 ### 2. 运行程序
 
-系统支持两种模式：
+系统支持三种模式：
 
-#### 模式1：生成学习方案
+#### 模式1：快速测试知识点生成（推荐先测试）
+
+快速验证知识点生成是否靠谱，不进行耗时的依赖分析和排序：
+
+```bash
+# 使用用户画像文件（从文件中读取学习目标）
+python main.py points -p data/profiles/my_profile.yaml
+
+# 直接指定学习目标（不需要用户画像文件）
+python main.py points -g "强化学习"
+
+# 保存结果到JSON文件
+python main.py points -g "强化学习" -o test_points.json
+```
+
+**注意**：这个命令只生成知识点，速度很快（通常几秒到几十秒），适合快速验证知识点质量。
+
+#### 模式2：生成完整学习方案
 
 ```bash
 # 基本用法（自动保存到 data/profiles/ 目录，同时输出到控制台）
@@ -63,7 +80,7 @@ python main.py plan data/profiles/my_profile.yaml -g
 python main.py plan data/profiles/my_profile.yaml -o my_plan.json -g
 ```
 
-#### 模式2：基于已有学习方案生成教案
+#### 模式3：基于已有学习方案生成教案
 
 ```bash
 # 基于已有的学习方案文件生成教案

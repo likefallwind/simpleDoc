@@ -172,6 +172,79 @@ def generate_learning_plan(profile_path: str, output_path: str = None, output_fo
     print("=" * 60)
 
 
+def test_knowledge_points(profile_path: str, learning_goal: str = None, output_path: str = None):
+    """
+    快速测试知识点生成（不进行依赖分析和排序）
+    
+    Args:
+        profile_path: 用户画像YAML文件路径（可选，如果不提供则只使用learning_goal）
+        learning_goal: 学习目标（如果提供profile_path则从文件中读取）
+        output_path: 输出文件路径（可选，如果不提供则只打印到控制台）
+    """
+    print("=" * 60)
+    print("知识点生成测试（快速模式）")
+    print("=" * 60)
+    
+    # 确定学习目标
+    if profile_path:
+        try:
+            user_profile = UserProfile.from_file(profile_path)
+            learning_goal = user_profile.learning_goal
+            print(f"\n从用户画像读取学习目标: {learning_goal}")
+        except Exception as e:
+            print(f"✗ 加载用户画像失败: {str(e)}")
+            if not learning_goal:
+                print("错误：请提供学习目标或有效的用户画像文件")
+                return
+    elif not learning_goal:
+        print("错误：请提供学习目标（--goal）或用户画像文件（--profile）")
+        return
+    
+    # 生成知识点
+    print(f"\n[测试] 生成课程知识点（目标：{learning_goal}）...")
+    course_knowledge = CourseKnowledge()
+    try:
+        course_data = course_knowledge.get_or_generate_knowledge_points(learning_goal)
+        knowledge_points = course_data.get('knowledge_points', [])
+        
+        print(f"\n✓ 生成完成")
+        print(f"课程名称: {course_data.get('course_name', '')}")
+        print(f"课程描述: {course_data.get('course_description', '')}")
+        print(f"\n知识点列表（共 {len(knowledge_points)} 个）:")
+        print("-" * 60)
+        for i, point in enumerate(knowledge_points, 1):
+            name = point.get('name', '')
+            desc = point.get('description', '')
+            print(f"{i}. {name}")
+            if desc:
+                print(f"   {desc}")
+            print()
+        
+        # 输出到文件（如果需要）
+        if output_path:
+            import json
+            output_file = Path(output_path)
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(course_data, f, ensure_ascii=False, indent=2)
+            print(f"✓ 结果已保存到: {output_path}")
+        
+        # 显示文件位置
+        course_name = course_data.get('course_name', learning_goal)
+        file_path = course_knowledge.get_course_file_path(course_name)
+        print(f"\n知识点文件位置: {file_path}")
+        
+    except Exception as e:
+        print(f"✗ 生成知识点失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return
+    
+    print("\n" + "=" * 60)
+    print("测试完成！")
+    print("=" * 60)
+
+
 def generate_lessons_from_plan(plan_path: str, profile_path: str = None):
     """
     基于已有的学习方案生成教案
@@ -288,6 +361,12 @@ def main():
     lesson_parser.add_argument('plan', help='学习方案文件路径（JSON或YAML）')
     lesson_parser.add_argument('-p', '--profile', help='用户画像YAML文件路径（可选，用于更准确的个性化）')
     
+    # 快速测试知识点生成命令
+    points_parser = subparsers.add_parser('points', help='快速测试知识点生成（不进行依赖分析和排序）')
+    points_parser.add_argument('-p', '--profile', help='用户画像YAML文件路径（可选，如果不提供则使用--goal）')
+    points_parser.add_argument('-g', '--goal', help='学习目标（如果不提供--profile则必须提供）')
+    points_parser.add_argument('-o', '--output', help='输出JSON文件路径（可选）')
+    
     args = parser.parse_args()
     
     # 根据命令执行相应功能
@@ -315,6 +394,18 @@ def main():
                 profile_path = str(profile_path_obj)
         
         generate_lessons_from_plan(str(plan_path), profile_path)
+    
+    elif args.command == 'points':
+        # 测试知识点生成
+        profile_path = None
+        if args.profile:
+            profile_path_obj = Path(args.profile)
+            if not profile_path_obj.exists():
+                print(f"错误：用户画像文件不存在: {args.profile}")
+                return
+            profile_path = str(profile_path_obj)
+        
+        test_knowledge_points(profile_path, args.goal, args.output)
     
     else:
         # 如果没有指定命令，显示帮助信息
