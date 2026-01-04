@@ -12,9 +12,11 @@ from user_profile import UserProfile
 from course_knowledge import CourseKnowledge
 from prerequisite_analyzer import PrerequisiteAnalyzer
 from learning_path import LearningPath
+from lesson_generator import LessonGenerator
 
 
-def generate_learning_plan(profile_path: str, output_path: str = None, output_format: str = 'json'):
+def generate_learning_plan(profile_path: str, output_path: str = None, output_format: str = 'json', 
+                           generate_lessons: bool = False):
     """
     生成学习方案
     
@@ -22,6 +24,7 @@ def generate_learning_plan(profile_path: str, output_path: str = None, output_fo
         profile_path: 用户画像YAML文件路径
         output_path: 输出文件路径（可选，如果不提供则打印到控制台）
         output_format: 输出格式（'json' 或 'yaml'）
+        generate_lessons: 是否生成知识点教案（默认False）
     """
     print("=" * 60)
     print("AI学习方案生成系统")
@@ -105,8 +108,27 @@ def generate_learning_plan(profile_path: str, output_path: str = None, output_fo
         }
     }
     
-    # 6. 输出结果
-    print(f"\n[步骤6] 输出培养方案...")
+    # 6. 生成教案（可选）
+    if generate_lessons:
+        print(f"\n[步骤6] 生成知识点教案...")
+        lesson_generator = LessonGenerator(user_profile)
+        try:
+            lesson_files = lesson_generator.generate_all_lessons(
+                sorted_points, 
+                dependencies, 
+                verbose=True
+            )
+            print(f"\n✓ 教案生成完成，共生成 {len(lesson_files)} 个教案文件")
+            if lesson_files:
+                print(f"  教案保存目录: {config.LESSONS_DIR}")
+        except Exception as e:
+            print(f"✗ 生成教案失败: {str(e)}")
+            # 教案生成失败不影响主流程，继续执行
+    else:
+        print(f"\n[步骤6] 跳过教案生成（使用 --generate-lessons 参数可生成教案）")
+    
+    # 7. 输出结果
+    print(f"\n[步骤7] 输出培养方案...")
     try:
         if output_format == 'yaml':
             output_content = yaml.dump(plan, allow_unicode=True, default_flow_style=False, sort_keys=False)
@@ -150,23 +172,153 @@ def generate_learning_plan(profile_path: str, output_path: str = None, output_fo
     print("=" * 60)
 
 
+def generate_lessons_from_plan(plan_path: str, profile_path: str = None):
+    """
+    基于已有的学习方案生成教案
+    
+    Args:
+        plan_path: 学习方案文件路径（JSON或YAML）
+        profile_path: 用户画像文件路径（可选，如果不提供则从学习方案中提取）
+    """
+    print("=" * 60)
+    print("基于学习方案生成教案")
+    print("=" * 60)
+    
+    # 1. 加载学习方案
+    print(f"\n[步骤1] 加载学习方案...")
+    plan_file = Path(plan_path)
+    if not plan_file.exists():
+        print(f"✗ 学习方案文件不存在: {plan_path}")
+        return
+    
+    try:
+        with open(plan_file, 'r', encoding='utf-8') as f:
+            if plan_file.suffix.lower() == '.yaml' or plan_file.suffix.lower() == '.yml':
+                plan_data = yaml.safe_load(f)
+            else:
+                plan_data = json.load(f)
+        
+        print(f"✓ 学习方案加载成功")
+    except Exception as e:
+        print(f"✗ 加载学习方案失败: {str(e)}")
+        return
+    
+    # 2. 提取信息
+    print(f"\n[步骤2] 提取学习方案信息...")
+    try:
+        user_info = plan_data.get('user', {})
+        learning_path = plan_data.get('learning_path', [])
+        dependencies = plan_data.get('dependencies', {})
+        learning_goal = user_info.get('learning_goal', '')
+        user_name = user_info.get('name', '')
+        
+        if not learning_path:
+            print(f"✗ 学习方案中缺少知识点列表")
+            return
+        
+        print(f"✓ 找到 {len(learning_path)} 个知识点")
+        print(f"✓ 学习目标: {learning_goal}")
+    except Exception as e:
+        print(f"✗ 提取信息失败: {str(e)}")
+        return
+    
+    # 3. 加载或创建用户画像
+    print(f"\n[步骤3] 加载用户画像...")
+    try:
+        if profile_path:
+            user_profile = UserProfile.from_file(profile_path)
+            print(f"✓ 从文件加载用户画像: {user_profile.name}")
+        else:
+            # 从学习方案中创建用户画像
+            profile_dict = {
+                'user': {
+                    'name': user_name,
+                    'background': {
+                        'courses': []
+                    },
+                    'learning_goal': learning_goal
+                }
+            }
+            user_profile = UserProfile.from_dict(profile_dict)
+            print(f"✓ 从学习方案中提取用户信息: {user_profile.name}")
+            print(f"  注意：未提供用户画像文件，将使用基础信息生成教案")
+    except Exception as e:
+        print(f"✗ 加载用户画像失败: {str(e)}")
+        return
+    
+    # 4. 生成教案
+    print(f"\n[步骤4] 生成知识点教案...")
+    lesson_generator = LessonGenerator(user_profile)
+    try:
+        lesson_files = lesson_generator.generate_all_lessons(
+            learning_path,
+            dependencies,
+            verbose=True
+        )
+        print(f"\n✓ 教案生成完成，共生成 {len(lesson_files)} 个教案文件")
+        if lesson_files:
+            print(f"  教案保存目录: {config.LESSONS_DIR}")
+    except Exception as e:
+        print(f"✗ 生成教案失败: {str(e)}")
+        return
+    
+    print("\n" + "=" * 60)
+    print("完成！")
+    print("=" * 60)
+
+
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description='AI学习方案生成系统')
-    parser.add_argument('profile', help='用户画像YAML文件路径')
-    parser.add_argument('-o', '--output', help='输出文件路径（可选）')
-    parser.add_argument('-f', '--format', choices=['json', 'yaml'], default='json',
-                       help='输出格式（默认：json）')
+    
+    # 添加子命令支持
+    subparsers = parser.add_subparsers(dest='command', help='可用命令')
+    
+    # 生成学习方案命令
+    plan_parser = subparsers.add_parser('plan', help='生成学习方案')
+    plan_parser.add_argument('profile', help='用户画像YAML文件路径')
+    plan_parser.add_argument('-o', '--output', help='输出文件路径（可选）')
+    plan_parser.add_argument('-f', '--format', choices=['json', 'yaml'], default='json',
+                            help='输出格式（默认：json）')
+    plan_parser.add_argument('-g', '--generate-lessons', action='store_true',
+                            help='生成知识点教案（默认不生成）')
+    
+    # 从学习方案生成教案命令
+    lesson_parser = subparsers.add_parser('lessons', help='基于已有学习方案生成教案')
+    lesson_parser.add_argument('plan', help='学习方案文件路径（JSON或YAML）')
+    lesson_parser.add_argument('-p', '--profile', help='用户画像YAML文件路径（可选，用于更准确的个性化）')
     
     args = parser.parse_args()
     
-    # 检查文件是否存在
-    profile_path = Path(args.profile)
-    if not profile_path.exists():
-        print(f"错误：用户画像文件不存在: {args.profile}")
-        return
+    # 根据命令执行相应功能
+    if args.command == 'plan':
+        # 检查文件是否存在
+        profile_path = Path(args.profile)
+        if not profile_path.exists():
+            print(f"错误：用户画像文件不存在: {args.profile}")
+            return
+        generate_learning_plan(str(profile_path), args.output, args.format, args.generate_lessons)
     
-    generate_learning_plan(str(profile_path), args.output, args.format)
+    elif args.command == 'lessons':
+        # 检查文件是否存在
+        plan_path = Path(args.plan)
+        if not plan_path.exists():
+            print(f"错误：学习方案文件不存在: {args.plan}")
+            return
+        
+        profile_path = None
+        if args.profile:
+            profile_path_obj = Path(args.profile)
+            if not profile_path_obj.exists():
+                print(f"警告：用户画像文件不存在: {args.profile}，将使用学习方案中的信息")
+            else:
+                profile_path = str(profile_path_obj)
+        
+        generate_lessons_from_plan(str(plan_path), profile_path)
+    
+    else:
+        # 如果没有指定命令，显示帮助信息
+        parser.print_help()
 
 
 if __name__ == '__main__':
