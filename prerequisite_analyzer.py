@@ -22,6 +22,7 @@ class PrerequisiteAnalyzer:
         self.llm_service = LLMService()
         self.user_profile = user_profile
         self.dependencies: Dict[str, List[str]] = {}  # 知识点 -> 前置知识点列表
+        self.prerequisite_descriptions: Dict[str, str] = {}  # 前置知识点名称 -> 描述
         self.analyzed_points: Set[str] = set()  # 已分析的知识点
         self.verbose = verbose
     
@@ -85,6 +86,12 @@ class PrerequisiteAnalyzer:
                                 # 检查用户是否已掌握
                                 if not self.user_profile.has_knowledge_point(prereq_name):
                                     prerequisites.append(prereq_name)
+                                    # 保存前置知识点的描述（优先使用description，如果没有则使用reason）
+                                    prereq_desc = prereq.get('description', '')
+                                    if not prereq_desc:
+                                        prereq_desc = prereq.get('reason', '')
+                                    if prereq_name not in self.prerequisite_descriptions or not self.prerequisite_descriptions[prereq_name]:
+                                        self.prerequisite_descriptions[prereq_name] = prereq_desc
                     
                     # 缓存结果
                     batch_dependencies[point_name] = prerequisites
@@ -249,7 +256,8 @@ class PrerequisiteAnalyzer:
             if name in point_dict:
                 result.append(point_dict[name])
             else:
-                # 前置知识点，只有名称
-                result.append({'name': name, 'description': ''})
+                # 前置知识点，从prerequisite_descriptions中获取描述
+                description = self.prerequisite_descriptions.get(name, '')
+                result.append({'name': name, 'description': description})
         
         return result

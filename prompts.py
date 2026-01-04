@@ -94,6 +94,7 @@ def get_prerequisite_analysis_prompt_batch(knowledge_points: List[Dict],
             "prerequisites": [
                 {{
                     "name": "前置知识点名称",
+                    "description": "前置知识点的简要描述（说明这个知识点是什么，包含什么核心概念）",
                     "reason": "必须简短说明为什么这是前置条件（例如：计算梯度需要用到导数）"
                 }}
             ]

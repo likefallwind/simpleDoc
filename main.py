@@ -235,7 +235,12 @@ def test_prerequisites(profile_path: str, learning_goal: str = None, output_path
         
         # 获取所有需要学习的知识点（包括前置知识点）
         all_points = analyzer.get_all_knowledge_points(knowledge_points)
-        print(f"✓ 包含前置知识点，共 {len(all_points)} 个知识点需要学习")
+        
+        # 分离初始知识点和前置知识点
+        initial_names = {p.get('name', '') for p in knowledge_points}
+        prerequisite_points = [p for p in all_points if p.get('name', '') not in initial_names]
+        
+        print(f"✓ 包含前置知识点，共 {len(all_points)} 个知识点需要学习（初始 {len(knowledge_points)} 个 + 前置 {len(prerequisite_points)} 个）")
         
         # 显示依赖关系
         print(f"\n" + "=" * 60)
@@ -247,19 +252,43 @@ def test_prerequisites(profile_path: str, learning_goal: str = None, output_path
                 for prereq in prereqs:
                     print(f"  → {prereq}")
         
-        # 显示所有知识点（初始 + 前置）
+        # 重点输出前置知识点（重要判断指标）
         print(f"\n" + "=" * 60)
-        print("所有知识点列表（初始 + 前置）：")
+        print("【重要】前置知识点列表（共 {} 个）：".format(len(prerequisite_points)))
         print("=" * 60)
-        initial_names = {p.get('name', '') for p in knowledge_points}
+        if prerequisite_points:
+            for i, point in enumerate(prerequisite_points, 1):
+                name = point.get('name', '')
+                desc = point.get('description', '')
+                print(f"{i}. {name}")
+                if desc:
+                    print(f"   {desc}")
+                else:
+                    print(f"   （无描述）")
+        else:
+            print("（无前置知识点）")
+        
+        # 输出初始知识点列表
+        print(f"\n" + "=" * 60)
+        print("初始知识点列表（共 {} 个）：".format(len(knowledge_points)))
+        print("=" * 60)
+        for i, point in enumerate(knowledge_points, 1):
+            name = point.get('name', '')
+            desc = point.get('description', '')
+            print(f"{i}. {name}")
+            if desc:
+                print(f"   {desc}")
+        
+        # 输出所有知识点汇总（初始 + 前置）
+        print(f"\n" + "=" * 60)
+        print("所有知识点汇总（初始 {} 个 + 前置 {} 个 = 总计 {} 个）：".format(
+            len(knowledge_points), len(prerequisite_points), len(all_points)))
+        print("=" * 60)
         for i, point in enumerate(all_points, 1):
             name = point.get('name', '')
             is_initial = name in initial_names
             marker = "[初始]" if is_initial else "[前置]"
-            desc = point.get('description', '')
             print(f"{i}. {marker} {name}")
-            if desc:
-                print(f"   {desc}")
         
         # 输出到文件（如果需要）
         if output_path:
@@ -273,11 +302,12 @@ def test_prerequisites(profile_path: str, learning_goal: str = None, output_path
                     'description': course_data.get('course_description', '')
                 },
                 'initial_knowledge_points': knowledge_points,
+                'prerequisite_knowledge_points': prerequisite_points,  # 单独列出前置知识点
                 'all_knowledge_points': all_points,
                 'dependencies': dependencies,
                 'statistics': {
                     'initial_points': len(knowledge_points),
-                    'prerequisite_points': len(all_points) - len(knowledge_points),
+                    'prerequisite_points': len(prerequisite_points),
                     'total_points': len(all_points),
                     'dependency_count': len(dependencies)
                 }
