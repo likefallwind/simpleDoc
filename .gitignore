@@ -19,5 +19,4 @@ ENV/
 *.swo
 
 # 数据文件（可选，根据需要调整）
-# data/courses/*.md
-# data/profiles/*.yaml
+data/
