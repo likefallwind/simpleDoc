@@ -141,56 +141,28 @@ python main.py lessons data/profiles/示例学生_强化学习_20260104_182849.j
 
 ```mermaid
 flowchart TD
-    A[Start] --> B[Load User Profile<br/>UserProfile]
-    B --> C{Knowledge Points<br/>File Exists?}
-    C -->|Yes| D[Load from<br/>MD File]
-    C -->|No| E[Generate with LLM<br/>Course Knowledge]
-    E --> F[Save to<br/>MD File]
-    D --> G[Prerequisite Analysis<br/>PrerequisiteAnalyzer]
-    F --> G
-    G --> H[Batch Analyze<br/>Prerequisites]
-    H --> I{Recursive<br/>Analysis?}
-    I -->|Yes| J[Recursive Analysis<br/>Max Depth: 2]
-    J --> K[Collect All Points<br/>Initial + Prerequisites]
-    I -->|No| K
-    K --> L[Learning Path Sorting<br/>LearningPath]
-    L --> M[LLM Sorting<br/>3 Times Average]
-    M --> N[Output Learning Plan<br/>JSON/YAML Format]
-    N --> O[End]
+    A[Knowledge Points] --> B[Prerequisite Analysis<br/>Batch + Recursive Max Depth: 2]
+    B --> C[Collect All Points<br/>Initial + Prerequisites]
+    C --> D[Learning Path Sorting<br/>LLM 3 Times Average]
+    D --> E[Learning Plan]
     
-    style A fill:#e1f5ff
-    style O fill:#e1f5ff
-    style G fill:#fff4e1
-    style L fill:#fff4e1
-    style N fill:#ffe1f5
+    style B fill:#fff4e1
+    style D fill:#fff4e1
+    style E fill:#ffe1f5
 ```
 
 #### 2. 生成教案流程 (Lesson Generation)
 
 ```mermaid
 flowchart TD
-    A[Start] --> B{Load from<br/>Learning Plan?}
-    B -->|Yes| C[Load Learning Plan<br/>JSON/YAML]
-    B -->|No| D[Use Current<br/>Learning Path]
-    C --> E[Extract Knowledge Points<br/>and Dependencies]
-    D --> E
-    E --> F[Initialize Lesson Generator<br/>LessonGenerator]
-    F --> G[For Each Knowledge Point]
-    G --> H{Lesson File<br/>Exists?}
-    H -->|Yes| I[Skip]
-    H -->|No| J[Generate Lesson Content<br/>with LLM]
-    J --> K[Save as<br/>Markdown File]
-    I --> L{More<br/>Points?}
-    K --> L
-    L -->|Yes| G
-    L -->|No| M[All Lessons Generated]
-    M --> N[End]
+    A[Learning Path] --> B[For Each Knowledge Point]
+    B --> C[Generate Lesson<br/>with LLM]
+    C --> D[Save Markdown]
+    D --> B
+    B --> E[All Lessons]
     
-    style A fill:#e1f5ff
-    style N fill:#e1f5ff
-    style F fill:#e1ffe1
-    style J fill:#e1ffe1
-    style M fill:#ffe1f5
+    style C fill:#e1ffe1
+    style E fill:#ffe1f5
 ```
 
 ### 详细步骤
