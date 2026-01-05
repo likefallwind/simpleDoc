@@ -137,36 +137,60 @@ python main.py lessons data/profiles/示例学生_强化学习_20260104_182849.j
 
 ### 算法框架图
 
+#### 1. 生成培养方案流程 (Learning Plan Generation)
+
 ```mermaid
 flowchart TD
-    A[开始] --> B[加载用户画像<br/>UserProfile]
-    B --> C{课程知识点文件<br/>是否存在?}
-    C -->|是| D[从MD文件读取<br/>知识点]
-    C -->|否| E[LLM生成课程<br/>知识点]
-    E --> F[保存知识点到<br/>MD文件]
-    D --> G[前置依赖分析<br/>PrerequisiteAnalyzer]
+    A[Start] --> B[Load User Profile<br/>UserProfile]
+    B --> C{Knowledge Points<br/>File Exists?}
+    C -->|Yes| D[Load from<br/>MD File]
+    C -->|No| E[Generate with LLM<br/>Course Knowledge]
+    E --> F[Save to<br/>MD File]
+    D --> G[Prerequisite Analysis<br/>PrerequisiteAnalyzer]
     F --> G
-    G --> H[批量分析知识点<br/>前置依赖]
-    H --> I{是否递归分析?}
-    I -->|是| J[递归分析前置知识点<br/>最大深度: 2层]
-    J --> K[收集所有知识点<br/>初始+前置]
-    I -->|否| K
-    K --> L[学习路径排序<br/>LearningPath]
-    L --> M[LLM排序<br/>调用3次取平均]
-    M --> N{是否生成教案?}
-    N -->|是| O[生成知识点教案<br/>LessonGenerator]
-    O --> P[为每个知识点生成<br/>Markdown教案]
-    P --> Q[输出培养方案]
-    N -->|否| Q
-    Q --> R[保存为JSON/YAML<br/>格式]
-    R --> S[结束]
+    G --> H[Batch Analyze<br/>Prerequisites]
+    H --> I{Recursive<br/>Analysis?}
+    I -->|Yes| J[Recursive Analysis<br/>Max Depth: 2]
+    J --> K[Collect All Points<br/>Initial + Prerequisites]
+    I -->|No| K
+    K --> L[Learning Path Sorting<br/>LearningPath]
+    L --> M[LLM Sorting<br/>3 Times Average]
+    M --> N[Output Learning Plan<br/>JSON/YAML Format]
+    N --> O[End]
     
     style A fill:#e1f5ff
-    style S fill:#e1f5ff
+    style O fill:#e1f5ff
     style G fill:#fff4e1
     style L fill:#fff4e1
-    style O fill:#e1ffe1
-    style Q fill:#ffe1f5
+    style N fill:#ffe1f5
+```
+
+#### 2. 生成教案流程 (Lesson Generation)
+
+```mermaid
+flowchart TD
+    A[Start] --> B{Load from<br/>Learning Plan?}
+    B -->|Yes| C[Load Learning Plan<br/>JSON/YAML]
+    B -->|No| D[Use Current<br/>Learning Path]
+    C --> E[Extract Knowledge Points<br/>and Dependencies]
+    D --> E
+    E --> F[Initialize Lesson Generator<br/>LessonGenerator]
+    F --> G[For Each Knowledge Point]
+    G --> H{Lesson File<br/>Exists?}
+    H -->|Yes| I[Skip]
+    H -->|No| J[Generate Lesson Content<br/>with LLM]
+    J --> K[Save as<br/>Markdown File]
+    I --> L{More<br/>Points?}
+    K --> L
+    L -->|Yes| G
+    L -->|No| M[All Lessons Generated]
+    M --> N[End]
+    
+    style A fill:#e1f5ff
+    style N fill:#e1f5ff
+    style F fill:#e1ffe1
+    style J fill:#e1ffe1
+    style M fill:#ffe1f5
 ```
 
 ### 详细步骤
